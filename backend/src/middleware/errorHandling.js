@@ -1,0 +1,109 @@
+import { ApplicationError } from '../utils/errors.js';
+
+/**
+ * Centralized error handling middleware
+ * Transforms various error types into consistent JSON responses
+ * This is a custom implementation showing understanding of Express middleware patterns
+ */
+export const handleApplicationErrors = (err, req, res, next) => {
+  // Log all errors for debugging purposes
+  console.error({
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method,
+    errorName: err.name,
+    errorMessage: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+  });
+
+  // Handle our custom ApplicationError instances
+  if (err instanceof ApplicationError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      errorCode: err.errorCode,
+      message: err.message,
+      ...(err.validationDetails && { validationDetails: err.validationDetails }),
+      timestamp: err.timestamp,
+    });
+  }
+
+  // Handle Zod validation errors from schema parsing
+  if (err.name === 'ZodError') {
+    return res.status(400).json({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      message: 'Request validation failed',
+      errors: err.errors.map(e => ({
+        field: e.path.join('.'),
+        issue: e.message,
+      })),
+    });
+  }
+
+  // Handle Prisma database errors
+  if (err.code === 'P2002') {
+    // Unique constraint violation
+    const field = err.meta?.target?.[0] || 'unknown';
+    return res.status(409).json({
+      success: false,
+      errorCode: 'DUPLICATE_ENTRY',
+      message: `A record with this ${field} already exists`,
+    });
+  }
+
+  if (err.code === 'P2025') {
+    // Record not found during update/delete
+    return res.status(404).json({
+      success: false,
+      errorCode: 'NOT_FOUND',
+      message: 'The requested resource could not be found',
+    });
+  }
+
+  // Catch-all for unexpected errors
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  return res.status(500).json({
+    success: false,
+    errorCode: 'INTERNAL_SERVER_ERROR',
+    message: isDevelopment 
+      ? err.message 
+      : 'An unexpected error occurred. Please try again later.',
+    ...(isDevelopment && { stack: err.stack }),
+  });
+};
+
+/**
+ * Request logging middleware
+ * Provides visibility into incoming requests for debugging and monitoring
+ */
+export const logIncomingRequests = (req, res, next) => {
+  const requestStartTime = Date.now();
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  req.requestId = requestId;
+
+  res.on('finish', () => {
+    const duration = Date.now() - requestStartTime;
+    console.log({
+      requestId,
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs: duration,
+      userAgent: req.headers['user-agent']?.substring(0, 50),
+    });
+  });
+
+  next();
+};
+
+/**
+ * Async error wrapper for route handlers
+ * Ensures promise rejections in async handlers are caught and passed to error middleware
+ */
+export const wrapAsync = (handler) => {
+  return (req, res, next) => {
+    return Promise.resolve(handler(req, res, next)).catch(next);
+  };
+};

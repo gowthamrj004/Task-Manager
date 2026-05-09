@@ -1,0 +1,17 @@
+{
+  "name": "Team Task Manager",
+  "description": "Full-stack task management application with role-based access control",
+  "website": "https://github.com/yourusername/team-task-manager",
+  "repository": "https://github.com/yourusername/team-task-manager",
+  "keywords": ["task-management", "project-management", "react", "node", "postgresql"],
+  "env": {
+    "JWT_SECRET": {
+      "description": "Secret key for JWT authentication",
+      "value": "change-this-to-a-random-string-in-production"
+    },
+    "NODE_ENV": {
+      "description": "Environment mode",
+      "value": "production"
+    }
+  }
+}
