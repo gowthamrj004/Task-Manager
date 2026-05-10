@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { resolveApiBaseUrl } from './resolveApiBaseUrl.js';
 
 /**
  * API Client Configuration
@@ -6,7 +7,7 @@ import axios from 'axios';
  * This approach allows for centralized API configuration and error handling
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = resolveApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
