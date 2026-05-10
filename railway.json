@@ -1,4 +1,4 @@
 {
-  "buildCommand": "cd backend && npm install && npx prisma generate && cd ../frontend && npm install && VITE_API_URL=/api npm run build",
-  "startCommand": "cd backend && npm run start:with-migrations"
+  "buildCommand": "cd backend && npm install && npx prisma generate && cd ../frontend && npm install && VITE_API_URL=/api npm run build && node ../backend/scripts/copy-frontend-into-public.mjs",
+  "startCommand": "cd backend && npm start"
 }

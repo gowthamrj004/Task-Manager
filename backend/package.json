@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "start": "node index.js",
+    "start": "node scripts/start-production.mjs",
+    "start:dev": "node index.js",
     "start:with-migrations": "prisma migrate deploy && node index.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

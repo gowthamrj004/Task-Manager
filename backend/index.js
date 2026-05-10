@@ -37,16 +37,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-/** Comma-separated origins, e.g. https://your-app.up.railway.app,http://localhost:5173 */
+/** Comma-separated origins; trailing slashes stripped (browser Origin has none) */
 function parseAllowedOrigins() {
   const raw =
     process.env.FRONTEND_URL ||
     process.env.ALLOWED_ORIGINS ||
     "http://localhost:5173";
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const set = new Set();
+  for (const s of raw.split(",")) {
+    let o = s.trim();
+    if (!o) continue;
+    while (o.endsWith("/")) o = o.slice(0, -1);
+    set.add(o);
+  }
+  return [...set];
 }
 
 // ============================================
@@ -61,7 +65,9 @@ const allowedOrigins = parseAllowedOrigins();
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      const normalized = origin.replace(/\/$/, "");
+      if (allowedOrigins.includes(normalized) || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       callback(null, false);

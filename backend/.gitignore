@@ -6,3 +6,5 @@ node_modules/
 dist/
 build/
 .prisma/
+# Copied from frontend/dist during deploy (see scripts/copy-frontend-into-public.mjs)
+public/
