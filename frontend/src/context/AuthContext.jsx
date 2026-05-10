@@ -1,5 +1,6 @@
 import { createContext, useState, useCallback, useEffect } from 'react';
 import { accountManagementAPI } from '../utils/apiClient';
+import { getApiErrorMessage } from '../utils/httpErrorMessage';
 
 /**
  * Authentication Context
@@ -58,8 +59,7 @@ export function AuthProvider({ children }) {
       setCurrentUser(accountData);
       return accountData;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
-      setAuthenticationError(errorMessage);
+      setAuthenticationError(getApiErrorMessage(error));
       throw error;
     }
   }, []);
@@ -85,8 +85,7 @@ export function AuthProvider({ children }) {
       setCurrentUser(accountData);
       return accountData;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
-      setAuthenticationError(errorMessage);
+      setAuthenticationError(getApiErrorMessage(error));
       throw error;
     }
   }, []);

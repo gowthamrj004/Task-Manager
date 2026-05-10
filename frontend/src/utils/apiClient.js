@@ -6,7 +6,7 @@ import axios from 'axios';
  * This approach allows for centralized API configuration and error handling
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -40,13 +40,21 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle 401 Unauthorized - redirect to login
+    const data = error.response?.data;
+    if (data && typeof data === 'object' && typeof data.message === 'string') {
+      error.apiMessage = data.message;
+    } else if (typeof data === 'string' && data.trim() && !data.trim().startsWith('<')) {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed?.message) error.apiMessage = parsed.message;
+      } catch {
+        error.apiMessage = data.trim().slice(0, 500);
+      }
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('accountData');
-      // Could trigger logout action here
     }
-
     return Promise.reject(error);
   }
 );

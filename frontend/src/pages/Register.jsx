@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/httpErrorMessage';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -23,10 +24,15 @@ export default function Register() {
       await registerNewAccount(formData.email, formData.password, formData.fullName);
       navigate('/dashboard');
     } catch (err) {
-      // De-AI Polish: Provide more descriptive error messages
-      const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
+      const errorMessage = getApiErrorMessage(err);
       setError(errorMessage);
-      console.error("Registration debug info:", err);
+      const res = err.response;
+      console.error('Registration debug:', {
+        status: res?.status,
+        url: err.config?.baseURL + (err.config?.url || ''),
+        data: res?.data,
+        message: errorMessage,
+      });
     } finally {
       setLoading(false);
     }

@@ -85,8 +85,8 @@ export const validateRequestData = (schema, inputData) => {
   try {
     return schema.parse(inputData);
   } catch (zodError) {
-    // Transform Zod errors into more user-friendly validation errors
-    const errorDetails = zodError.errors.reduce((accumulated, currentError) => {
+    const issues = zodError?.issues ?? zodError?.errors ?? [];
+    const errorDetails = issues.reduce((accumulated, currentError) => {
       const fieldPath = currentError.path.join('.');
       accumulated[fieldPath] = currentError.message;
       return accumulated;

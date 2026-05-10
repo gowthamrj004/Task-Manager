@@ -12,7 +12,18 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+/** Comma-separated origins, e.g. https://your-app.up.railway.app,http://localhost:5173 */
+function parseAllowedOrigins() {
+  const raw =
+    process.env.FRONTEND_URL ||
+    process.env.ALLOWED_ORIGINS ||
+    "http://localhost:5173";
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 // ============================================
 // MIDDLEWARE CONFIGURATION
@@ -21,13 +32,21 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 // Logging middleware - tracks all incoming requests
 app.use(logIncomingRequests);
 
-// CORS configuration - enables cross-origin requests from frontend
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// CORS — single FRONTEND_URL breaks local dev against a deployed API; allow multiple origins
+const allowedOrigins = parseAllowedOrigins();
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Body parsing middleware - handles JSON and cookies
 app.use(express.json());
@@ -66,7 +85,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
-      console.log(`✓ CORS enabled for: ${FRONTEND_URL}`);
+      console.log(`✓ CORS allowed origins: ${allowedOrigins.join(", ")}`);
       console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {

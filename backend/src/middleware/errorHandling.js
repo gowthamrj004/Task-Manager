@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { ApplicationError } from '../utils/errors.js';
 
 /**
@@ -29,14 +30,33 @@ export const handleApplicationErrors = (err, req, res, next) => {
 
   // Handle Zod validation errors from schema parsing
   if (err.name === 'ZodError') {
+    const issues = err.issues ?? err.errors ?? [];
     return res.status(400).json({
       success: false,
       errorCode: 'VALIDATION_ERROR',
       message: 'Request validation failed',
-      errors: err.errors.map(e => ({
+      errors: issues.map((e) => ({
         field: e.path.join('.'),
         issue: e.message,
       })),
+    });
+  }
+
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'PRISMA_INIT',
+      message:
+        err.message ||
+        'Database unavailable. Check DATABASE_URL (SSL may require ?sslmode=require).',
+    });
+  }
+
+  if (err instanceof Prisma.PrismaClientRustPanicError) {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'PRISMA_ENGINE',
+      message: err.message || 'Database engine error.',
     });
   }
 
@@ -60,14 +80,64 @@ export const handleApplicationErrors = (err, req, res, next) => {
     });
   }
 
-  // Catch-all for unexpected errors
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  if (err.code === 'P1000') {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'DATABASE_AUTH_FAILED',
+      message:
+        'Database rejected credentials. Check DATABASE_URL user/password (URL-encode special characters in the password).',
+    });
+  }
+
+  // Prisma: connection / availability (common after deploy if DATABASE_URL or SSL is wrong)
+  if (err.code === 'P1001') {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'DATABASE_UNAVAILABLE',
+      message:
+        'Cannot reach the database. Verify DATABASE_URL, SSL (?sslmode=require for many hosts), and that the database allows connections.',
+    });
+  }
+  if (err.code === 'P1003') {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'DATABASE_NOT_FOUND',
+      message:
+        'Database does not exist. Create it or fix DATABASE_URL.',
+    });
+  }
+  if (err.code === 'P1017' || err.code === 'P1011') {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'DATABASE_CONNECTION_ERROR',
+      message: 'Database closed the connection. Retry or check pool/SSL settings.',
+    });
+  }
+  // Table missing — migrations not applied
+  if (err.code === 'P2021') {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'SCHEMA_OUT_OF_DATE',
+      message:
+        'Database tables are missing. Run: npx prisma migrate deploy (against this DATABASE_URL).',
+    });
+  }
+
+  // Catch-all — include technical details when safe (Prisma codes, or explicit flag)
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const exposeMessage =
+    isDevelopment ||
+    process.env.EXPOSE_API_ERRORS === 'true' ||
+    (typeof err.code === 'string' && err.code.startsWith('P')) ||
+    err.name === 'PrismaClientKnownRequestError';
+
   return res.status(500).json({
     success: false,
     errorCode: 'INTERNAL_SERVER_ERROR',
-    message: isDevelopment 
-      ? err.message 
+    message: exposeMessage
+      ? err.message
       : 'An unexpected error occurred. Please try again later.',
+    ...(exposeMessage && err.code && { prismaCode: err.code }),
     ...(isDevelopment && { stack: err.stack }),
   });
 };
