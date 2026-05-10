@@ -71,7 +71,7 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error("✗ Failed to start server:", error.message);
-    console.error("Make sure MySQL is running and DATABASE_URL is correct");
+    console.error("Make sure PostgreSQL is running and DATABASE_URL is correct");
     process.exit(1);
   }
 };

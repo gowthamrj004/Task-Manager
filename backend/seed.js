@@ -65,7 +65,7 @@ async function seed() {
     await prisma.task.create({
       data: {
         title: 'Setup database',
-        description: 'Configure MySQL database and create tables',
+        description: 'Configure PostgreSQL database and create tables',
         status: 'DONE',
         dueDate: new Date(),
         projectId: project1.id,
