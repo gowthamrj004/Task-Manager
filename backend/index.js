@@ -14,20 +14,31 @@ import prisma from "./src/utils/db.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** Where Vite build output lives (Railway may set cwd or root differently) */
+/**
+ * Where the Vite build lives at runtime.
+ * Railway: `copy-frontend-into-public.mjs` copies to backend/public — that MUST be first.
+ */
 function resolveFrontendDist() {
   const envDir = process.env.FRONTEND_DIST_DIR?.trim();
   if (envDir && fs.existsSync(path.join(envDir, "index.html"))) {
     return envDir;
   }
   const candidates = [
+    path.join(__dirname, "public"),
+    path.join(process.cwd(), "public"),
     path.join(__dirname, "..", "frontend", "dist"),
     path.join(process.cwd(), "frontend", "dist"),
     path.join(process.cwd(), "..", "frontend", "dist"),
     path.join(process.cwd(), "dist"),
+    "/app/backend/public",
+    "/app/frontend/dist",
   ];
   for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, "index.html"))) return dir;
+    try {
+      if (fs.existsSync(path.join(dir, "index.html"))) return dir;
+    } catch {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -101,6 +112,13 @@ app.get("/api/health", (req, res) => {
 
 // Built React app — serve static files + SPA fallback for /register, /dashboard, etc.
 const frontendDist = resolveFrontendDist();
+if (!frontendDist && process.env.NODE_ENV === "production") {
+  console.warn(
+    "SPA not resolved. Checked FRONTEND_DIST_DIR, backend/public, frontend/dist, cwd=%s __dirname=%s",
+    process.cwd(),
+    __dirname
+  );
+}
 const apiOnlyHelpHtml = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><title>Team Task Manager API</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem">
